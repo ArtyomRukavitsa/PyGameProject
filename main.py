@@ -10,13 +10,13 @@ HEIGHT = 600
 
 # Создание экрана, групп, параметров
 pygame.init()
-pygame.key.set_repeat(200, 70)
+#pygame.key.set_repeat(200, 70)
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
 all_sprites = pygame.sprite.Group()
 monster_group = pygame.sprite.Group()
-PICTURES = ['monster.png', 'monster1.png']
+PICTURES = ['monster1.png', 'monster2.png']
 
 pygame.time.set_timer(pygame.USEREVENT, 1000)
 
@@ -61,8 +61,9 @@ class Monster(pygame.sprite.Sprite):
         self.mh = self.image.get_height()
         # Данное условие нужно для расположения первого монстра на начальном экране
         if x != 750 and y != 0:
+            #while not pygame.sprite.spritecollide(self, monster_group, False) != 1:
             self.x = randint(0, WIDTH - self.mw)
-            self.y = randint(0, HEIGHT - self.mh)
+            self.y = randint(0, HEIGHT - self.mh - 150)
             self.rect = self.image.get_rect().move(self.x, self.y)
         else:
             self.rect = self.image.get_rect().move(750, 0)
@@ -123,11 +124,32 @@ def start_screen():
                     all_sprites.remove(monster)
                     # Остановка стартовой музыки
                     pygame.mixer.music.stop()
-                    Arrow(all_sprites)
+                    #Arrow(all_sprites)
                     FirstLevel() # начинаем игру
         monster_group.draw(screen)
         pygame.display.flip()
         clock.tick()
+
+
+# Сколько секунд осталось
+def time(seconds):
+    font = pygame.font.SysFont('Verdana', 20)
+    text = font.render(f"Осталось секунд: {seconds}", 1, (100, 255, 100))
+    screen.blit(text, (20, 20))
+
+
+# Сколько убито монстров
+def killscount(count):
+    font = pygame.font.SysFont('Verdana', 20)
+    text = font.render(f"Убийств: {count}", 1, (100, 255, 100))
+    screen.blit(text, (350, 20))
+
+
+# Сколько осталось убить монстров
+def leftkills(count):
+    font = pygame.font.SysFont('Verdana', 20)
+    text = font.render(f"Осталось убить: {count}", 1, (100, 255, 100))
+    screen.blit(text, (800, 20))
 
 
 # Первый уровень игры
@@ -136,27 +158,53 @@ def FirstLevel():
     for i in range(2):
         monster = Monster(PICTURES[randint(0, 1)], 100, 100)
         monster_list.append(monster)
-
     fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
     gun = load_image('gun3.png')
+    arrow = load_image("прицел2.jpg", -1)
+    count = 0
+    seconds = 30
+    #arrow = Arrow(all_sprites)
     while True:
+        x, y = pygame.mouse.get_pos()
         screen.blit(fon, (0, 0))
         for i in range(2):
-            screen.blit(monster_list[1].image,
-                        (monster_list[1].x, monster_list[1].y))
+            screen.blit(monster_list[i].image,
+                        (monster_list[i].x, monster_list[i].y))
 
-        screen.blit(gun, (400, 450))
-
+        screen.blit(gun, (x, 450)) # или х оставить неизменным?
+        # что делать с стрелкой?
+        screen.blit(arrow, (x - arrow.get_width() / 2, y - arrow.get_height() / 2))
+        arrow_r = pygame.Rect(x - arrow.get_width() / 2, y - arrow.get_height() / 2, arrow.get_width(),
+                                      arrow.get_height())
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
             if event.type == pygame.MOUSEMOTION:
                 all_sprites.update(event)
-
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # продумать столкновения (+ добавить их в функцию?)
+                for i in range(2):
+                    if arrow_r.colliderect(monster_list[i]):
+                        all_sprites.remove(monster_list[i])
+                        monster_group.remove(monster_list[i])
+                        del monster_list[i]
+                        monster = Monster(PICTURES[randint(0, 1)], 100, 100)
+                        monster_list.append(monster)
+                        count += 1
+            if event.type == pygame.USEREVENT:
+                seconds -= 1
+        time(seconds)
+        killscount(count)
+        leftkills(20 - count)
+        if seconds == 0:
+            if count > 20:
+                pass
+            else:
+                print('you lost')
         all_sprites.draw(screen)
         all_sprites.update()
         pygame.display.update()
 
-
+# Диалог PyQt как зовут пользователя
 pygame.mouse.set_visible(False)
 start_screen()
