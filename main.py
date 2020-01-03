@@ -1,27 +1,33 @@
 import os
 import sys
 import pygame
-from random import randint, random
+from random import randint
 from PyQt5.QtWidgets import QInputDialog
-from PyQt5.QtWidgets import QWidget, QApplication, QPushButton
+from PyQt5.QtWidgets import QWidget, QApplication
 import time
 
 # Константы
-FPS = 50
+FPS = 50 # нужна ли? подумать!
 WIDTH = 1000
 HEIGHT = 600
 COUNT_OF_KILLS = 0
 
+# Создание групп для первого монстрика. Новые создаю в фукнции Level
+clock = pygame.time.Clock()
 all_sprites = pygame.sprite.Group()
 monster_group = pygame.sprite.Group()
+gameover_youwin_group = pygame.sprite.Group()
+
+# Список с изображенииями монстриков
 PICTURES = ['monster1.png', 'monster2.png', 'monster3.png', 'monster4.png']
 
+# Установка таймера
 pygame.time.set_timer(pygame.USEREVENT, 1000)
 
 
-# Функция, отвечающая за загрузку того или иного файла в mixer
+# Функция, отвечающая за загрузку того или иного музыкального файла в mixer
 def music(file):
-    pygame.mixer.pre_init(44100, -16, 2, 2048)  # setup mixer to avoid sound lag
+    pygame.mixer.pre_init(44100, -16, 2, 2048)
     pygame.mixer.init()
     pygame.mixer.music.load(file)
 
@@ -49,13 +55,72 @@ def terminate():
     sys.exit()
 
 
-# Сколько убито монстров
+# Текст "уровень пройден"
 def nextlevel():
     font = pygame.font.SysFont('Verdana', 60)
     text = font.render("УРОВЕНЬ ПРОЙДЕН", 1, (100, 255, 100))
     screen.blit(text, (200, 300))
     pygame.display.update()
 
+
+class Gameover(pygame.sprite.Sprite):
+    image = load_image("gameover.png")
+
+    def __init__(self, group):
+        # НЕОБХОДИМО вызвать конструктор родительского класса Sprite
+        super().__init__(group)
+        self.image = Gameover.image
+        self.rect = self.image.get_rect()
+        self.rect.left = -2000
+        self.rect.top = 0
+
+    def update(self):
+        v = 200
+        #if self.rect.left < 0:
+        self.rect.left += v * clock.tick() / 1000 # v * t в секундах
+
+
+def set_gameover_background():
+    Gameover(gameover_youwin_group)
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        screen.fill(pygame.Color("black"))
+        gameover_youwin_group.update()
+        gameover_youwin_group.draw(screen)
+        pygame.display.flip()
+
+
+class Win(pygame.sprite.Sprite):
+    image = load_image("youwin.png")
+
+    def __init__(self, group):
+        # НЕОБХОДИМО вызвать конструктор родительского класса Sprite
+        super().__init__(group)
+        self.image = Win.image
+        self.rect = self.image.get_rect()
+        self.rect.left = -2000
+        self.rect.top = 0
+
+    def update(self):
+        v = 200
+        if self.rect.left < 0:
+            self.rect.left += v * clock.tick() / 1000 # v * t в секундах
+
+
+def set_youwin_background():
+    Win(gameover_youwin_group)
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        screen.fill(pygame.Color("white"))
+        gameover_youwin_group.update()
+        gameover_youwin_group.draw(screen)
+        pygame.display.flip()
 
 # Класс, отвечающий за спрайты монстров
 class Monster(pygame.sprite.Sprite):
@@ -159,14 +224,19 @@ def leftkills(count):
     screen.blit(text, (800, 20))
 
 
+# Текст паузы
 def pausetext():
     font = pygame.font.SysFont('Verdana', 60)
     text = font.render("ПАУЗА", 1, (100, 255, 100))
     screen.blit(text, (400, 30))
 
 
-# Первый уровень игры
+# Универсальная функция для уровней игры
 def Level(background, n, seconds, countOfMonsters):
+    # background - изображение файла (*.png)
+    # n - количество монстров, возможных на экране
+    # seconds - количество секунд на уровень
+    # conunOfMonsters - сколько монстров нужно убить
     monster_list = []
     monster_group = pygame.sprite.Group()
     all_sprites = pygame.sprite.Group()
@@ -177,10 +247,12 @@ def Level(background, n, seconds, countOfMonsters):
     gun = load_image('gun3.png')
     arrow = load_image("arrow.png")
     count = 0
-    #seconds = 10
     #arrow = Arrow(all_sprites)
     pause, running = False, True
     state = running
+
+    # pygame.mixer.music.play(-1)
+
     while True:
         if state == running:
             x, y = pygame.mouse.get_pos()
@@ -213,23 +285,26 @@ def Level(background, n, seconds, countOfMonsters):
                     seconds -= 1
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
                     state = pause
+                    #music('data/lost.mp3')
             mytime(seconds)
             killscount(count)
             leftkills(countOfMonsters - count)
             if seconds == 0:
+                pygame.display.update()
                 if count >= countOfMonsters:
                     return 0, count
                 else:
                     return 1, count
             all_sprites.draw(screen)
             all_sprites.update()
-            pygame.display.update()
         elif state == pause:
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
                     state = running
             pausetext()
-            pygame.display.flip()
+            #music('data/lost.mp3')
+            #pygame.mixer.music.play(-1)
+        pygame.display.flip()
         #clock.tick(30)
 
 
@@ -241,41 +316,46 @@ class Example(QWidget):
     def initUI(self):
         NAME = ''
         while NAME == '':
-            NAME, okBtnPressed = QInputDialog.getText(self, "Введите имя",
-                                                   "Как тебя зовут?")
+            NAME, okBtnPressed = QInputDialog.getText(self,
+                                                      "Введите имя", "Как тебя зовут?")
             if okBtnPressed:
                 return
 
 
 if __name__ == '__main__':
+    # Диалоговое окно с вводом имени
     app = QApplication(sys.argv)
     ex = Example()
-    # Создание экрана, групп, параметров
+    # Создание экрана
     pygame.init()
     # pygame.key.set_repeat(200, 70)
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    clock = pygame.time.Clock()
     pygame.mouse.set_visible(False)
     # Запуск заставки, далее первого уровня
     start_screen()
-    result1 = Level('background1.png', 2, 20, 20) # начинаем игру
+    result1 = Level('background1.png', 2, 20, 20)
+    # Уровень возвращает два параметра: 0 - победа, 1 - поражение и
+    # количество убитых монстров на уровне
     COUNT_OF_KILLS += result1[1]
+
     if result1[0] == 0:
         nextlevel()
-        time.sleep(5) # почему отсчет идет сразу, получаетсч 15-5 секунд
-        result2 = Level('background2.png', 3, 15, 30)
+        set_youwin_background()
+        time.sleep(5) # почему отсчет идет сразу, получается (15 - 5) = 10 секунд
+        result2 = Level('background2.png', 3, 15, 10) # 3 15 10
         COUNT_OF_KILLS += result2[1]
         if result2[0] == 0:
             nextlevel()
             time.sleep(5)  # почему отсчет идет сразу, получаетсч 15-5 секунд
-            result3 = Level('background3.png', 3, 15, 40)
+            result3 = Level('background3.png', 3, 15, 10) # 3 15 40
             COUNT_OF_KILLS += result3[1]
             if result3[0] == 0:
-                print('win')
+                set_youwin_background()
             else:
-                print('lost')
+                set_gameover_background()
         else:
-            print('lost')
+            set_gameover_background()
     else:
-        print('lost')
+        set_gameover_background()
+
 
