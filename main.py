@@ -99,7 +99,8 @@ def start_screen():
                   "Убивай монстров на каждом уровне, но внимание!",
                   "с каждым уровнем все меньше времени и больше убийств",
                   "Ты со мной?",
-                  "Нажимай Enter, время не ждет!"]
+                  "Нажимай на пробел, время не ждет!",
+                  "Для паузы нажимай правую стрелку"]
 
     fon = pygame.transform.scale(load_image('fon1.jpg'), (WIDTH, HEIGHT))
     monster = Monster('monster1.png', 750, 0)
@@ -158,6 +159,12 @@ def leftkills(count):
     screen.blit(text, (800, 20))
 
 
+def pausetext():
+    font = pygame.font.SysFont('Verdana', 60)
+    text = font.render("ПАУЗА", 1, (100, 255, 100))
+    screen.blit(text, (400, 30))
+
+
 # Первый уровень игры
 def Level(background, n, seconds, countOfMonsters):
     monster_list = []
@@ -172,46 +179,57 @@ def Level(background, n, seconds, countOfMonsters):
     count = 0
     #seconds = 10
     #arrow = Arrow(all_sprites)
+    pause, running = False, True
+    state = running
     while True:
-        x, y = pygame.mouse.get_pos()
-        screen.blit(fon, (0, 0))
-        for i in range(n):
-            screen.blit(monster_list[i].image,
-                        (monster_list[i].x, monster_list[i].y))
+        if state == running:
+            x, y = pygame.mouse.get_pos()
+            screen.blit(fon, (0, 0))
+            for i in range(n):
+                screen.blit(monster_list[i].image,
+                            (monster_list[i].x, monster_list[i].y))
 
-        screen.blit(gun, (x, 450)) # или х оставить неизменным?
-        # что делать с стрелкой?
-        screen.blit(arrow, (x - arrow.get_width() / 2, y - arrow.get_height() / 2))
-        arrow_r = pygame.Rect(x - arrow.get_width() / 2, y - arrow.get_height() / 2, arrow.get_width(),
-                                      arrow.get_height())
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                terminate()
-            if event.type == pygame.MOUSEMOTION:
-                all_sprites.update(event)
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # продумать столкновения (+ добавить их в функцию?)
-                for i in range(n):
-                    if arrow_r.colliderect(monster_list[i]):
-                        all_sprites.remove(monster_list[i])
-                        monster_group.remove(monster_list[i])
-                        del monster_list[i]
-                        monster = Monster(PICTURES[randint(0, 3)], 100, 100)
-                        monster_list.append(monster)
-                        count += 1
-            if event.type == pygame.USEREVENT:
-                seconds -= 1
-        mytime(seconds)
-        killscount(count)
-        leftkills(countOfMonsters - count)
-        if seconds == 0:
-            if count >= countOfMonsters:
-                return 0, count
-            else:
-                return 1, count
-        all_sprites.draw(screen)
-        all_sprites.update()
-        pygame.display.update()
+            screen.blit(gun, (x, 450))  # или х оставить неизменным?
+            # что делать с стрелкой?
+            screen.blit(arrow, (x - arrow.get_width() / 2, y - arrow.get_height() / 2))
+            arrow_r = pygame.Rect(x - arrow.get_width() / 2, y - arrow.get_height() / 2, arrow.get_width(),
+                                  arrow.get_height())
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    terminate()
+                if event.type == pygame.MOUSEMOTION:
+                    all_sprites.update(event)
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    # продумать столкновения (+ добавить их в функцию?)
+                    for i in range(n):
+                        if arrow_r.colliderect(monster_list[i]):
+                            all_sprites.remove(monster_list[i])
+                            monster_group.remove(monster_list[i])
+                            del monster_list[i]
+                            monster = Monster(PICTURES[randint(0, 3)], 100, 100)
+                            monster_list.append(monster)
+                            count += 1
+                if event.type == pygame.USEREVENT:
+                    seconds -= 1
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+                    state = pause
+            mytime(seconds)
+            killscount(count)
+            leftkills(countOfMonsters - count)
+            if seconds == 0:
+                if count >= countOfMonsters:
+                    return 0, count
+                else:
+                    return 1, count
+            all_sprites.draw(screen)
+            all_sprites.update()
+            pygame.display.update()
+        elif state == pause:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+                    state = running
+            pausetext()
+            pygame.display.flip()
         #clock.tick(30)
 
 
@@ -221,11 +239,12 @@ class Example(QWidget):
         self.initUI()
 
     def initUI(self):
-        i, okBtnPressed = QInputDialog.getText(self, "Введите имя",
-                                               "Как тебя зовут?")
-        if okBtnPressed:
-            NAME = i
-        return
+        NAME = ''
+        while NAME == '':
+            NAME, okBtnPressed = QInputDialog.getText(self, "Введите имя",
+                                                   "Как тебя зовут?")
+            if okBtnPressed:
+                return
 
 
 if __name__ == '__main__':
