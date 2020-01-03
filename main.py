@@ -51,10 +51,10 @@ def terminate():
 
 # Сколько убито монстров
 def nextlevel():
-    font = pygame.font.SysFont('Verdana', 100)
+    font = pygame.font.SysFont('Verdana', 60)
     text = font.render("УРОВЕНЬ ПРОЙДЕН", 1, (100, 255, 100))
-    screen.blit(text, (500, 300))
-    time.sleep(5)
+    screen.blit(text, (200, 300))
+    pygame.display.update()
 
 
 # Класс, отвечающий за спрайты монстров
@@ -161,8 +161,8 @@ def leftkills(count):
 # Первый уровень игры
 def Level(background, n, seconds, countOfMonsters):
     monster_list = []
-    for el in monster_group:
-        monster_group.remove(el)
+    monster_group = pygame.sprite.Group()
+    all_sprites = pygame.sprite.Group()
     for i in range(n):
         monster = Monster(PICTURES[randint(0, 3)], 100, 100)
         monster_list.append(monster)
@@ -196,7 +196,7 @@ def Level(background, n, seconds, countOfMonsters):
                         all_sprites.remove(monster_list[i])
                         monster_group.remove(monster_list[i])
                         del monster_list[i]
-                        monster = Monster(PICTURES[randint(0, 1)], 100, 100)
+                        monster = Monster(PICTURES[randint(0, 3)], 100, 100)
                         monster_list.append(monster)
                         count += 1
             if event.type == pygame.USEREVENT:
@@ -212,7 +212,7 @@ def Level(background, n, seconds, countOfMonsters):
         all_sprites.draw(screen)
         all_sprites.update()
         pygame.display.update()
-        clock.tick(30)
+        #clock.tick(30)
 
 
 class Example(QWidget):
@@ -239,11 +239,24 @@ if __name__ == '__main__':
     pygame.mouse.set_visible(False)
     # Запуск заставки, далее первого уровня
     start_screen()
-    result = Level('background1.png', 2, 20, 20) # начинаем игру
-    COUNT_OF_KILLS += result[1]
-    if result[0] == 0:
+    result1 = Level('background1.png', 2, 20, 20) # начинаем игру
+    COUNT_OF_KILLS += result1[1]
+    if result1[0] == 0:
         nextlevel()
-        Level('background2.png', 3, 10, 30)
+        time.sleep(5) # почему отсчет идет сразу, получаетсч 15-5 секунд
+        result2 = Level('background2.png', 3, 15, 30)
+        COUNT_OF_KILLS += result2[1]
+        if result2[0] == 0:
+            nextlevel()
+            time.sleep(5)  # почему отсчет идет сразу, получаетсч 15-5 секунд
+            result3 = Level('background3.png', 3, 15, 40)
+            COUNT_OF_KILLS += result3[1]
+            if result3[0] == 0:
+                print('win')
+            else:
+                print('lost')
+        else:
+            print('lost')
     else:
         print('lost')
 
