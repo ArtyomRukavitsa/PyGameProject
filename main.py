@@ -82,11 +82,14 @@ class Gameover(pygame.sprite.Sprite):
 
 def set_gameover_background():
     Gameover(gameover_youwin_group)
+    print(gameover_youwin_group)
+    pygame.display.update()
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+        pygame.display.update()
         screen.fill(pygame.Color("black"))
         gameover_youwin_group.update()
         gameover_youwin_group.draw(screen)
@@ -245,7 +248,7 @@ def Level(background, n, seconds, countOfMonsters):
         monster_list.append(monster)
     fon = pygame.transform.scale(load_image(background), (WIDTH, HEIGHT))
     gun = load_image('gun3.png')
-    arrow = load_image("arrow.png")
+    arrow = load_image("arrow_small.png")
     count = 0
     #arrow = Arrow(all_sprites)
     pause, running = False, True
@@ -255,6 +258,8 @@ def Level(background, n, seconds, countOfMonsters):
 
     while True:
         if state == running:
+            # флаг нужен для того, чтобы пресекать возможность убийства сразу двух или даже трех монстров
+            flag = 0
             x, y = pygame.mouse.get_pos()
             screen.blit(fon, (0, 0))
             for i in range(n):
@@ -274,13 +279,14 @@ def Level(background, n, seconds, countOfMonsters):
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     # продумать столкновения (+ добавить их в функцию?)
                     for i in range(n):
-                        if arrow_r.colliderect(monster_list[i]):
+                        if arrow_r.colliderect(monster_list[i]) and flag == 0:
                             all_sprites.remove(monster_list[i])
                             monster_group.remove(monster_list[i])
                             del monster_list[i]
                             monster = Monster(PICTURES[randint(0, 3)], 100, 100)
                             monster_list.append(monster)
                             count += 1
+                            flag = 1
                 if event.type == pygame.USEREVENT:
                     seconds -= 1
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
@@ -356,6 +362,11 @@ if __name__ == '__main__':
         else:
             set_gameover_background()
     else:
+        #terminate()
+        #pygame.init()
+        # pygame.key.set_repeat(200, 70)
+        #screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.update()
         set_gameover_background()
 
 
