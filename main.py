@@ -2,7 +2,7 @@ import os
 import sys
 import pygame
 from random import randint, choice
-from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog, QWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QApplication, QInputDialog, QWidget, QTableWidgetItem
 from PyQt5.QtGui import QColor
 from PyQt5 import uic
 import time
@@ -10,10 +10,10 @@ import csv
 
 
 # Константы
-FPS = 50 # нужна ли? подумать!
 WIDTH = 1000
 HEIGHT = 600
 COUNT_OF_KILLS = 0
+GRAVITY = 1
 NAME = ''
 
 # Создание групп для первого монстрика. Новые создаю в фукнции Level
@@ -23,7 +23,6 @@ monster_group = pygame.sprite.Group()
 gameover_youwin_group = pygame.sprite.Group()
 stars = pygame.sprite.Group()
 screen_rect = (0, 0, WIDTH, HEIGHT)
-GRAVITY = 1
 
 # Список с изображенииями монстриков
 PICTURES = ['monster1.png', 'monster2.png', 'monster3.png', 'monster4.png']
@@ -78,9 +77,9 @@ class Monster(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(x, y)
         self.mw = self.image.get_width()
         self.mh = self.image.get_height()
+        self.rect = self.image.get_rect()
         # Данное условие нужно для расположения первого монстра на начальном экране
         if x != 750 and y != 0:
-            #while not pygame.sprite.spritecollide(self, monster_group, False) != 1:
             self.x = randint(0, WIDTH - self.mw)
             self.y = randint(0, HEIGHT - self.mh - 150)
             self.rect = self.image.get_rect().move(self.x, self.y)
@@ -150,14 +149,29 @@ def mytime(seconds):
 def killscount(count):
     font = pygame.font.SysFont('Verdana', 20)
     text = font.render(f"Убийств: {count}", 1, (100, 255, 100))
-    screen.blit(text, (350, 20))
+    screen.blit(text, (400, 20))
 
 
 # Сколько осталось убить монстров
 def leftkills(count):
     font = pygame.font.SysFont('Verdana', 20)
-    text = font.render(f"Осталось убить: {count}", 1, (100, 255, 100))
-    screen.blit(text, (800, 20))
+    if count >= 0:
+        text = font.render(f"Осталось убить: {count}", 1, (100, 255, 100))
+    else:
+        text = font.render(f"Осталось убить: 0", 1, (100, 255, 100))
+    screen.blit(text, (750, 20))
+
+
+# Функция отвечает за выстрел
+def blood(x, y):
+    image = load_image("blood.png")
+    music('data/gun_sound.wav')
+    pygame.mixer.music.play()
+    imagew = image.get_width()
+    imageh = image.get_height()
+    screen.blit(image, (x - imagew / 2, y - imageh / 2))
+    pygame.display.update()
+    time.sleep(0.1)
 
 
 # Текст паузы
@@ -213,6 +227,8 @@ def Level(background, n, seconds, countOfMonsters):
                     # продумать столкновения (+ добавить их в функцию?)
                     for i in range(n):
                         if arrow_r.colliderect(monster_list[i]) and flag == 0:
+                            blood(monster_list[i].x + monster_list[i].mw / 2,
+                                       monster_list[i].y + monster_list[i].mh / 2)
                             all_sprites.remove(monster_list[i])
                             monster_group.remove(monster_list[i])
                             del monster_list[i]
@@ -247,8 +263,8 @@ def Level(background, n, seconds, countOfMonsters):
         #clock.tick(30)
 
 
+# Запись результатов в таблицу
 def my_writer(reader, new_row):
-    """Запись результатов в таблицу"""
     with open('data/results.csv', 'w', newline='\n', encoding='utf8') as csvfile:
         csvfile.write('')
         row = f'{reader[0][0]};{reader[0][1]}\n'
@@ -260,27 +276,29 @@ def my_writer(reader, new_row):
             csvfile.write(new_row)
 
 
-def write_results(NAME, COUNT_OF_KILLS):
-    # Считывание данных
+# Считывание данных таблицы
+def results(NAME, COUNT_OF_KILLS):
     flag = 'No'
+    # Считывание данных
     with open('data/results.csv', encoding="utf8") as csvfile:
         reader = list(csv.reader(csvfile, delimiter=';', quotechar='"'))
-    # Преобразуем кол-во побед в тип int
+    # Преобразуем кол-во монстров в тип int
     for elem in reader[1:]:
         elem[1] = int(elem[1])
     for elem in reader[1:]:
         # Если победивший есть в csv-файле, то в методе my_writer идет запись
-        # количества побед победившего + 1
+        # количества убитых монстров в общем + за эту игру
         if elem[0] == NAME:
             flag = 'Yes'
             elem[1] += COUNT_OF_KILLS
             my_writer(reader, ' ')
             break
-    # Победившего в таблице не оказалось. Записываем его имя и победу в файл
+    # Победившего в таблице не оказалось. Записываем его имя и количество убийств в файл
     if flag == 'No':
         my_writer(reader, f'{NAME};{COUNT_OF_KILLS}\n')
 
 
+# Диалоговое окно
 class Example(QWidget):
     def __init__(self):
         super().__init__()
@@ -296,20 +314,20 @@ class Example(QWidget):
                 return
 
 
+# Класс, отвечающий за открытие таблицы результатов
 class DataBase(QWidget):
-    """ Класс отвечает за виджет "Таблица результатов" """
     def __init__(self):
         super().__init__()
         uic.loadUi('data/table.ui', self)
         self.loadTable('data/results.csv')
         self.show()
 
-    # Красим имена победителей
+    # Красим имена и результат топ-3 игроков
     def colorRow(self, row, color):
         for i in range(self.tableWidget.columnCount()):
             self.tableWidget.item(row, i).setBackground(color)
 
-    # Вывод победителей
+    # Вывод игроков
     def loadTable(self, name):
         with open(name, encoding="utf8") as csvfile:
             reader = list(csv.reader(csvfile, delimiter=';', quotechar='"'))
@@ -330,6 +348,7 @@ class DataBase(QWidget):
         self.tableWidget.resizeColumnsToContents()
 
 
+# Класс для отображения частиц
 class Particle(pygame.sprite.Sprite):
     # сгенерируем частицы разного размера
 
@@ -361,6 +380,7 @@ class Particle(pygame.sprite.Sprite):
             self.kill()
 
 
+# Создание частиц
 def create_particles(position, win):
     # количество создаваемых частиц
     particle_count = 120
@@ -374,10 +394,17 @@ def create_particles(position, win):
         Particle(name, position, choice(numbers), choice(numbers))
 
 
+# Фукнция, отвечающая за проигрышное окончание игры: запись результатов,
+# отображение фоновой картинки и частицы - грустные смайлики
 def new_gameover():
     time.sleep(1)
+    results(NAME, COUNT_OF_KILLS)
     gameover = load_image('gameover.png')
     pygame.display.update()
+
+    # Загрузка музыки и ее цикличный проигрыш
+    music('data/lost.mp3')
+    pygame.mixer.music.play(-1)
     running = True
     while running:
         for event in pygame.event.get():
@@ -394,18 +421,23 @@ def new_gameover():
         clock.tick(20)
 
 
+# Фукнция, отвечающая за проигрышное окончание игры: запись результатов,
+# отображение фоновой картинки и частицы - звездочки
 def new_you_win():
-    pygame.mouse.set_visible(True)
     time.sleep(1)
+    results(NAME, COUNT_OF_KILLS)
     win = load_image('youwin.png')
     pygame.display.update()
+
+    #  Загрузка музыки и ее цикличный проигрыш
+    music('data/win.mp3')
+    pygame.mixer.music.play(-1)
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.USEREVENT:
-                # создаём частицы по щелчку мыши
                 create_particles([randint(0, WIDTH), randint(0, HEIGHT)], True)
 
         screen.fill(pygame.Color("white"))
@@ -422,22 +454,19 @@ if __name__ == '__main__':
     ex = Example()
     # Создание экрана
     pygame.init()
-    # pygame.key.set_repeat(200, 70)
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.mouse.set_visible(False)
-    screen2 = pygame.display.set_mode((WIDTH, HEIGHT))
     # Запуск заставки, далее первого уровня
     start_screen()
-    result1 = Level('background1.png', 2, 2, 20)
+    result1 = Level('background1.png', 2, 4, 2)
     # Уровень возвращает два параметра: 0 - победа, 1 - поражение и
     # количество убитых монстров на уровне
     COUNT_OF_KILLS += result1[1]
 
     if result1[0] == 0:
         nextlevel()
-
         time.sleep(5) # почему отсчет идет сразу, получается (15 - 5) = 10 секунд
-        result2 = Level('background2.png', 1, 8, 1) # 3 15 10
+        result2 = Level('background2.png', 1, 10, 2) # 3 15 10
         COUNT_OF_KILLS += result2[1]
         if result2[0] == 0:
             nextlevel()
@@ -445,14 +474,10 @@ if __name__ == '__main__':
             result3 = Level('background3.png', 1, 8, 1) # 3 15 40
             COUNT_OF_KILLS += result3[1]
             if result3[0] == 0:
-                write_results(NAME, COUNT_OF_KILLS)
                 new_you_win()
             else:
-                write_results(NAME, COUNT_OF_KILLS)
                 new_gameover()
         else:
-            write_results(NAME, COUNT_OF_KILLS)
             new_gameover()
     else:
-        write_results(NAME, COUNT_OF_KILLS)
         new_gameover()
