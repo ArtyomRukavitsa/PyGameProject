@@ -1,22 +1,29 @@
 import os
 import sys
 import pygame
-from random import randint
-from PyQt5.QtWidgets import QInputDialog
-from PyQt5.QtWidgets import QWidget, QApplication
+from random import randint, choice
+from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog, QWidget, QTableWidgetItem
+from PyQt5.QtGui import QColor
+from PyQt5 import uic
 import time
+import csv
+
 
 # Константы
 FPS = 50 # нужна ли? подумать!
 WIDTH = 1000
 HEIGHT = 600
 COUNT_OF_KILLS = 0
+NAME = ''
 
 # Создание групп для первого монстрика. Новые создаю в фукнции Level
 clock = pygame.time.Clock()
 all_sprites = pygame.sprite.Group()
 monster_group = pygame.sprite.Group()
 gameover_youwin_group = pygame.sprite.Group()
+stars = pygame.sprite.Group()
+screen_rect = (0, 0, WIDTH, HEIGHT)
+GRAVITY = 1
 
 # Список с изображенииями монстриков
 PICTURES = ['monster1.png', 'monster2.png', 'monster3.png', 'monster4.png']
@@ -63,68 +70,6 @@ def nextlevel():
     pygame.display.update()
 
 
-class Gameover(pygame.sprite.Sprite):
-    image = load_image("gameover.png")
-
-    def __init__(self, group):
-        # НЕОБХОДИМО вызвать конструктор родительского класса Sprite
-        super().__init__(group)
-        self.image = Gameover.image
-        self.rect = self.image.get_rect()
-        self.rect.left = -2000
-        self.rect.top = 0
-
-    def update(self):
-        v = 200
-        #if self.rect.left < 0:
-        self.rect.left += v * clock.tick() / 1000 # v * t в секундах
-
-
-def set_gameover_background():
-    Gameover(gameover_youwin_group)
-    print(gameover_youwin_group)
-    pygame.display.update()
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-        pygame.display.update()
-        screen.fill(pygame.Color("black"))
-        gameover_youwin_group.update()
-        gameover_youwin_group.draw(screen)
-        pygame.display.flip()
-
-
-class Win(pygame.sprite.Sprite):
-    image = load_image("youwin.png")
-
-    def __init__(self, group):
-        # НЕОБХОДИМО вызвать конструктор родительского класса Sprite
-        super().__init__(group)
-        self.image = Win.image
-        self.rect = self.image.get_rect()
-        self.rect.left = -2000
-        self.rect.top = 0
-
-    def update(self):
-        v = 200
-        if self.rect.left < 0:
-            self.rect.left += v * clock.tick() / 1000 # v * t в секундах
-
-
-def set_youwin_background():
-    Win(gameover_youwin_group)
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-        screen.fill(pygame.Color("white"))
-        gameover_youwin_group.update()
-        gameover_youwin_group.draw(screen)
-        pygame.display.flip()
-
 # Класс, отвечающий за спрайты монстров
 class Monster(pygame.sprite.Sprite):
     def __init__(self, image, x, y):
@@ -143,21 +88,6 @@ class Monster(pygame.sprite.Sprite):
             self.rect = self.image.get_rect().move(750, 0)
 
 
-# Класс, отвечающий за курсор (прицел)
-class Arrow(pygame.sprite.Sprite):
-    image = load_image("прицел2.jpg")
-
-    def __init__(self, group):
-        # НЕОБХОДИМО вызвать конструктор родительского класса Sprite. Это очень важно !!!
-        super().__init__(group)
-        self.image = Arrow.image
-        self.rect = self.image.get_rect()
-
-    def update(self, *args):
-        if args and args[0].type == pygame.MOUSEMOTION:
-            self.rect.x, self.rect.y = args[0].pos
-
-
 # Начальный экран
 def start_screen():
     intro_text = ["ОХОТА НА МОНСТРОВ!", "",
@@ -168,7 +98,8 @@ def start_screen():
                   "с каждым уровнем все меньше времени и больше убийств",
                   "Ты со мной?",
                   "Нажимай на пробел, время не ждет!",
-                  "Для паузы нажимай правую стрелку"]
+                  "Для паузы нажимай правую стрелку",
+                  'Для просмотра таблицы результатов жми Q']
 
     fon = pygame.transform.scale(load_image('fon1.jpg'), (WIDTH, HEIGHT))
     monster = Monster('monster1.png', 750, 0)
@@ -201,6 +132,8 @@ def start_screen():
                     pygame.mixer.music.stop()
                     #Arrow(all_sprites)
                     return
+                if event.key == pygame.K_q:
+                    base = DataBase()
         monster_group.draw(screen)
         pygame.display.flip()
         clock.tick()
@@ -314,18 +247,173 @@ def Level(background, n, seconds, countOfMonsters):
         #clock.tick(30)
 
 
+def my_writer(reader, new_row):
+    """Запись результатов в таблицу"""
+    with open('data/results.csv', 'w', newline='\n', encoding='utf8') as csvfile:
+        csvfile.write('')
+        row = f'{reader[0][0]};{reader[0][1]}\n'
+        csvfile.write(row)
+        for row in reader[1:]:
+            row = f'{row[0]};{str(row[1])}\n'
+            csvfile.write(row)
+        if new_row != ' ':
+            csvfile.write(new_row)
+
+
+def write_results(NAME, COUNT_OF_KILLS):
+    # Считывание данных
+    flag = 'No'
+    with open('data/results.csv', encoding="utf8") as csvfile:
+        reader = list(csv.reader(csvfile, delimiter=';', quotechar='"'))
+    # Преобразуем кол-во побед в тип int
+    for elem in reader[1:]:
+        elem[1] = int(elem[1])
+    for elem in reader[1:]:
+        # Если победивший есть в csv-файле, то в методе my_writer идет запись
+        # количества побед победившего + 1
+        if elem[0] == NAME:
+            flag = 'Yes'
+            elem[1] += COUNT_OF_KILLS
+            my_writer(reader, ' ')
+            break
+    # Победившего в таблице не оказалось. Записываем его имя и победу в файл
+    if flag == 'No':
+        my_writer(reader, f'{NAME};{COUNT_OF_KILLS}\n')
+
+
 class Example(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
 
     def initUI(self):
-        NAME = ''
+        global NAME
+        #NAME = ''
         while NAME == '':
             NAME, okBtnPressed = QInputDialog.getText(self,
                                                       "Введите имя", "Как тебя зовут?")
             if okBtnPressed:
                 return
+
+
+class DataBase(QWidget):
+    """ Класс отвечает за виджет "Таблица результатов" """
+    def __init__(self):
+        super().__init__()
+        uic.loadUi('data/table.ui', self)
+        self.loadTable('data/results.csv')
+        self.show()
+
+    # Красим имена победителей
+    def colorRow(self, row, color):
+        for i in range(self.tableWidget.columnCount()):
+            self.tableWidget.item(row, i).setBackground(color)
+
+    # Вывод победителей
+    def loadTable(self, name):
+        with open(name, encoding="utf8") as csvfile:
+            reader = list(csv.reader(csvfile, delimiter=';', quotechar='"'))
+            title = reader[0]
+            # Сортировка по результату
+            reader = sorted(reader[1:], key=lambda x: -int(x[1]))
+
+            self.tableWidget.setColumnCount(len(title))
+            self.tableWidget.setHorizontalHeaderLabels(title)
+            self.tableWidget.setRowCount(0)
+            for i, row in enumerate(reader):
+                self.tableWidget.setRowCount(self.tableWidget.rowCount() + 1)
+                for j, elem in enumerate(row):
+                    self.tableWidget.setItem(i, j, QTableWidgetItem(elem))
+                if i < 3:
+                    self.colorRow(i, QColor(randint(0, 255), randint(0, 255), randint(0, 255)))
+
+        self.tableWidget.resizeColumnsToContents()
+
+
+class Particle(pygame.sprite.Sprite):
+    # сгенерируем частицы разного размера
+
+    def __init__(self, name, pos, dx, dy):
+        super().__init__(stars)
+        fire = [load_image(name)]
+        for scale in (5, 10, 20):
+            fire.append(pygame.transform.scale(fire[0], (scale, scale)))
+        self.image = choice(fire)
+        self.rect = self.image.get_rect()
+
+        # у каждой частицы своя скорость — это вектор
+        self.velocity = [dx, dy]
+        # и свои координаты
+        self.rect.x, self.rect.y = pos
+
+        # гравитация будет одинаковой (значение константы)
+        self.gravity = GRAVITY
+
+    def update(self):
+        # применяем гравитационный эффект:
+        # движение с ускорением под действием гравитации
+        self.velocity[1] += self.gravity
+        # перемещаем частицу
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
+        # убиваем, если частица ушла за экран
+        if not self.rect.colliderect(screen_rect):
+            self.kill()
+
+
+def create_particles(position, win):
+    # количество создаваемых частиц
+    particle_count = 120
+    # возможные скорости
+    numbers = range(-15, 16)
+    if win:
+        name = 'star.png'
+    else:
+        name = 'sad.png'
+    for _ in range(particle_count):
+        Particle(name, position, choice(numbers), choice(numbers))
+
+
+def new_gameover():
+    time.sleep(1)
+    gameover = load_image('gameover.png')
+    pygame.display.update()
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.USEREVENT:
+                # создаём частицы по щелчку мыши
+                create_particles([randint(0, WIDTH), randint(0, HEIGHT)], False)
+        screen.fill(pygame.Color("white"))
+        screen.blit(gameover, (0, 0))
+        stars.draw(screen)
+        stars.update()
+        pygame.display.flip()
+        clock.tick(20)
+
+
+def new_you_win():
+    pygame.mouse.set_visible(True)
+    time.sleep(1)
+    win = load_image('youwin.png')
+    pygame.display.update()
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.USEREVENT:
+                # создаём частицы по щелчку мыши
+                create_particles([randint(0, WIDTH), randint(0, HEIGHT)], True)
+
+        screen.fill(pygame.Color("white"))
+        screen.blit(win, (0, 0))
+        stars.draw(screen)
+        stars.update()
+        pygame.display.flip()
+        clock.tick(20)
 
 
 if __name__ == '__main__':
@@ -337,36 +425,34 @@ if __name__ == '__main__':
     # pygame.key.set_repeat(200, 70)
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.mouse.set_visible(False)
+    screen2 = pygame.display.set_mode((WIDTH, HEIGHT))
     # Запуск заставки, далее первого уровня
     start_screen()
-    result1 = Level('background1.png', 2, 20, 20)
+    result1 = Level('background1.png', 2, 2, 20)
     # Уровень возвращает два параметра: 0 - победа, 1 - поражение и
     # количество убитых монстров на уровне
     COUNT_OF_KILLS += result1[1]
 
     if result1[0] == 0:
         nextlevel()
-        set_youwin_background()
+
         time.sleep(5) # почему отсчет идет сразу, получается (15 - 5) = 10 секунд
-        result2 = Level('background2.png', 3, 15, 10) # 3 15 10
+        result2 = Level('background2.png', 1, 8, 1) # 3 15 10
         COUNT_OF_KILLS += result2[1]
         if result2[0] == 0:
             nextlevel()
             time.sleep(5)  # почему отсчет идет сразу, получаетсч 15-5 секунд
-            result3 = Level('background3.png', 3, 15, 10) # 3 15 40
+            result3 = Level('background3.png', 1, 8, 1) # 3 15 40
             COUNT_OF_KILLS += result3[1]
             if result3[0] == 0:
-                set_youwin_background()
+                write_results(NAME, COUNT_OF_KILLS)
+                new_you_win()
             else:
-                set_gameover_background()
+                write_results(NAME, COUNT_OF_KILLS)
+                new_gameover()
         else:
-            set_gameover_background()
+            write_results(NAME, COUNT_OF_KILLS)
+            new_gameover()
     else:
-        #terminate()
-        #pygame.init()
-        # pygame.key.set_repeat(200, 70)
-        #screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.update()
-        set_gameover_background()
-
-
+        write_results(NAME, COUNT_OF_KILLS)
+        new_gameover()
