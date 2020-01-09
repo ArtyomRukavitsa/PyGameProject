@@ -4,7 +4,7 @@ import pygame
 from random import randint, choice
 from PyQt5.QtWidgets import QApplication, QInputDialog, QWidget, QTableWidgetItem
 from PyQt5.QtGui import QColor
-from PyQt5 import uic
+from PyQt5 import QtCore, QtGui, QtWidgets
 import time
 import csv
 
@@ -28,6 +28,28 @@ PICTURES = ['monster1.png', 'monster2.png', 'monster3.png', 'monster4.png']
 
 # Установка таймера
 pygame.time.set_timer(pygame.USEREVENT, 1000)
+
+
+# Дизайн таблицы результатов
+class Ui_Form(object):
+    def setupUi(self, Form):
+        Form.setObjectName("Form")
+        Form.resize(530, 433)
+        self.tableWidget = QtWidgets.QTableWidget(Form)
+        self.tableWidget.setGeometry(QtCore.QRect(10, 10, 511, 401))
+        font = QtGui.QFont()
+        font.setPointSize(16)
+        self.tableWidget.setFont(font)
+        self.tableWidget.setObjectName("tableWidget")
+        self.tableWidget.setColumnCount(0)
+        self.tableWidget.setRowCount(0)
+
+        self.retranslateUi(Form)
+        QtCore.QMetaObject.connectSlotsByName(Form)
+
+    def retranslateUi(self, Form):
+        _translate = QtCore.QCoreApplication.translate
+        Form.setWindowTitle(_translate("Form", "Таблица результатов"))
 
 
 # Функция, отвечающая за загрузку того или иного музыкального файла в mixer
@@ -325,10 +347,10 @@ class Example(QWidget):
 
 
 # Класс, отвечающий за открытие таблицы результатов
-class DataBase(QWidget):
+class DataBase(QWidget, Ui_Form):
     def __init__(self):
         super().__init__()
-        uic.loadUi('data/table.ui', self)
+        self.setupUi(self)
         self.loadTable('data/results.csv')
         self.show()
 
