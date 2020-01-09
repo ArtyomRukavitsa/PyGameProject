@@ -38,6 +38,12 @@ def music(file):
     pygame.mixer.music.load(file)
 
 
+# Данная инициализация миксера идет для загрузки выстрела
+# (иначе звук основной игры будет сбиваться)
+music('data/gun_sound.wav')
+gun_sound = pygame.mixer.Sound("data/gun_sound.wav")
+
+
 # Функция, отвечающая за загрузку изображения
 def load_image(name, color_key=None):
     fullname = os.path.join('data', name)
@@ -165,7 +171,7 @@ def leftkills(count):
 # Функция отвечает за выстрел
 def blood(x, y):
     image = load_image("blood.png")
-    music('data/gun_sound.wav')
+    gun_sound.play()
     pygame.mixer.music.play()
     imagew = image.get_width()
     imageh = image.get_height()
@@ -201,7 +207,8 @@ def Level(background, n, seconds, countOfMonsters):
     pause, running = False, True
     state = running
 
-    # pygame.mixer.music.play(-1)
+    music('data/main_sound.mp3')
+    pygame.mixer.music.play(-1)
 
     while True:
         if state == running:
@@ -246,6 +253,7 @@ def Level(background, n, seconds, countOfMonsters):
             leftkills(countOfMonsters - count)
             if seconds == 0:
                 pygame.display.update()
+                pygame.mixer.music.stop()
                 if count >= countOfMonsters:
                     return 0, count
                 else:
@@ -306,12 +314,11 @@ class Example(QWidget):
 
     def initUI(self):
         global NAME
-        #NAME = ''
         while NAME == '':
             NAME, okBtnPressed = QInputDialog.getText(self,
                                                       "Введите имя", "Как тебя зовут?")
-            if okBtnPressed:
-                return
+        if okBtnPressed:
+            return
 
 
 # Класс, отвечающий за открытие таблицы результатов
@@ -458,7 +465,7 @@ if __name__ == '__main__':
     pygame.mouse.set_visible(False)
     # Запуск заставки, далее первого уровня
     start_screen()
-    result1 = Level('background1.png', 2, 4, 2)
+    result1 = Level('background1.png', 2, 20, 20)
     # Уровень возвращает два параметра: 0 - победа, 1 - поражение и
     # количество убитых монстров на уровне
     COUNT_OF_KILLS += result1[1]
@@ -466,12 +473,12 @@ if __name__ == '__main__':
     if result1[0] == 0:
         nextlevel()
         time.sleep(5) # почему отсчет идет сразу, получается (15 - 5) = 10 секунд
-        result2 = Level('background2.png', 1, 10, 2) # 3 15 10
+        result2 = Level('background2.png', 1, 25, 20) # 3 15 10
         COUNT_OF_KILLS += result2[1]
         if result2[0] == 0:
             nextlevel()
             time.sleep(5)  # почему отсчет идет сразу, получаетсч 15-5 секунд
-            result3 = Level('background3.png', 1, 8, 1) # 3 15 40
+            result3 = Level('background3.png', 1, 15, 20) # 3 15 40
             COUNT_OF_KILLS += result3[1]
             if result3[0] == 0:
                 new_you_win()
