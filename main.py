@@ -29,6 +29,11 @@ PICTURES = ['monster1.png', 'monster2.png', 'monster3.png', 'monster4.png']
 # Установка таймера
 pygame.time.set_timer(pygame.USEREVENT, 1000)
 
+# Настройка каналов
+pygame.mixer.pre_init(44100, -16, 2, 2048)
+pygame.mixer.init()
+gun_sound = pygame.mixer.Sound("data/gun_sound.wav")
+
 
 # Дизайн таблицы результатов
 class Ui_Form(object):
@@ -50,19 +55,6 @@ class Ui_Form(object):
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Таблица результатов"))
-
-
-# Функция, отвечающая за загрузку того или иного музыкального файла в mixer
-def music(file):
-    pygame.mixer.pre_init(44100, -16, 2, 2048)
-    pygame.mixer.init()
-    pygame.mixer.music.load(file)
-
-
-# Данная инициализация миксера идет для загрузки выстрела
-# (иначе звук основной игры будет сбиваться) !!!!!!!!!!!!
-music('data/gun_sound.wav')
-gun_sound = pygame.mixer.Sound("data/gun_sound.wav")
 
 
 # Функция, отвечающая за загрузку изображения
@@ -141,8 +133,7 @@ def start_screen():
         text_coord += intro_rect.height
         screen.blit(string_rendered, intro_rect)
 
-    # Загрузка музыки и ее цикличное проигрывание
-    music('data/start.mp3')
+    pygame.mixer.music.load('data/start.mp3')
     pygame.mixer.music.play(-1)
 
     while True:
@@ -191,8 +182,9 @@ def leftkills(count):
 # Функция отвечает за выстрел
 def blood(x, y):
     image = load_image("blood.png")
+    pygame.mixer.music.pause()
     gun_sound.play()
-    pygame.mixer.music.play()
+    pygame.mixer.music.unpause()
     imagew = image.get_width()
     imageh = image.get_height()
     screen.blit(image, (x - imagew / 2, y - imageh / 2))
@@ -229,7 +221,7 @@ def Level(background, n, seconds, countOfMonsters):
     pause, running = False, True
     state = running
 
-    music('data/main_sound.mp3')
+    pygame.mixer.music.load('data/main_sound.mp3')
     pygame.mixer.music.play(-1)
 
     while True:
@@ -292,6 +284,7 @@ def Level(background, n, seconds, countOfMonsters):
                 # Если условие выполнится, то игра продолжается
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
                     state = running
+            # музыка на паузу?
             pausetext()
         pygame.display.flip()
 
@@ -432,8 +425,7 @@ def new_gameover():
     gameover = load_image('gameover.png')
     pygame.display.update()
 
-    # Загрузка музыки и ее цикличный проигрыш
-    music('data/lost.mp3')
+    pygame.mixer.music.load('data/lost.mp3')
     pygame.mixer.music.play(-1)
     running = True
     while running:
@@ -459,9 +451,9 @@ def new_you_win():
     win = load_image('youwin.png')
     pygame.display.update()
 
-    #  Загрузка музыки и ее цикличный проигрыш
-    music('data/win.mp3')
+    pygame.mixer.music.load('data/win.mp3')
     pygame.mixer.music.play(-1)
+
     running = True
     while running:
         for event in pygame.event.get():
