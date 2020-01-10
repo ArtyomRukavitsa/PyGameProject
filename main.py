@@ -39,9 +39,9 @@ gun_sound = pygame.mixer.Sound("data/gun_sound.wav")
 class Ui_Form(object):
     def setupUi(self, Form):
         Form.setObjectName("Form")
-        Form.resize(530, 433)
+        Form.resize(650, 433)
         self.tableWidget = QtWidgets.QTableWidget(Form)
-        self.tableWidget.setGeometry(QtCore.QRect(10, 10, 511, 401))
+        self.tableWidget.setGeometry(QtCore.QRect(10, 10, 630, 413))
         font = QtGui.QFont()
         font.setPointSize(16)
         self.tableWidget.setFont(font)
@@ -93,10 +93,8 @@ class Monster(pygame.sprite.Sprite):
     def __init__(self, image, x, y):
         super().__init__(monster_group, all_sprites)
         self.image = load_image(image)
-        self.rect = self.image.get_rect().move(x, y)
         self.mw = self.image.get_width()
         self.mh = self.image.get_height()
-        self.rect = self.image.get_rect()
         # Данное условие нужно для расположения первого монстра на начальном экране
         if x != 750 and y != 0:
             self.x = randint(0, WIDTH - self.mw)
@@ -226,8 +224,6 @@ def Level(background, n, seconds, countOfMonsters):
 
     while True:
         if state == running:
-            # Флаг нужен для того, чтобы пресекать возможность убийства сразу нескольких монстров
-            flag = 0
             x, y = pygame.mouse.get_pos()
             screen.blit(fon, (0, 0))
             for i in range(n):
@@ -243,9 +239,11 @@ def Level(background, n, seconds, countOfMonsters):
                 if event.type == pygame.QUIT:
                     terminate()
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    # Проверка на столкновение с монстрами. Если она условия верны, то
+                    # Флаг нужен для того, чтобы пресекать возможность убийства сразу нескольких монстров
+                    # Проверка на столкновение с монстрами. Если оба условия верны, то
                     # убираем монстра с экрана. Если флаг == 1, то убийство произошло, а
                     # больше одного монстра убить невозможно
+                    flag = 0
                     for i in range(n):
                         if arrow_r.colliderect(monster_list[i]) and flag == 0:
                             blood(monster_list[i].x + monster_list[i].mw / 2,
@@ -293,17 +291,17 @@ def Level(background, n, seconds, countOfMonsters):
 def my_writer(reader, new_row):
     with open('data/results.csv', 'w', newline='\n', encoding='utf8') as csvfile:
         csvfile.write('')
-        row = f'{reader[0][0]};{reader[0][1]}\n'
+        row = f'{reader[0][0]};{reader[0][1]};{reader[0][2]}\n'
         csvfile.write(row)
         for row in reader[1:]:
-            row = f'{row[0]};{str(row[1])}\n'
+            row = f'{row[0]};{str(row[1])};{str(row[2])}\n'
             csvfile.write(row)
         if new_row != ' ':
             csvfile.write(new_row)
 
 
 # Считывание данных таблицы
-def results(NAME, COUNT_OF_KILLS):
+def results(NAME, COUNT_OF_KILLS, win):
     flag = 'No'
     # Считывание данных
     with open('data/results.csv', encoding="utf8") as csvfile:
@@ -311,17 +309,19 @@ def results(NAME, COUNT_OF_KILLS):
     # Преобразуем кол-во монстров в тип int
     for elem in reader[1:]:
         elem[1] = int(elem[1])
+        elem[2] = int(elem[2])
     for elem in reader[1:]:
         # Если победивший есть в csv-файле, то в методе my_writer идет запись
         # количества убитых монстров в общем + за эту игру
         if elem[0] == NAME:
             flag = 'Yes'
             elem[1] += COUNT_OF_KILLS
+            elem[2] += win
             my_writer(reader, ' ')
             break
     # Победившего в таблице не оказалось. Записываем его имя и количество убийств в файл
     if flag == 'No':
-        my_writer(reader, f'{NAME};{COUNT_OF_KILLS}\n')
+        my_writer(reader, f'{NAME};{COUNT_OF_KILLS};{win}\n')
 
 
 # Диалоговое окно
@@ -358,7 +358,7 @@ class DataBase(QWidget, Ui_Form):
             reader = list(csv.reader(csvfile, delimiter=';', quotechar='"'))
             title = reader[0]
             # Сортировка по результату
-            reader = sorted(reader[1:], key=lambda x: -int(x[1]))
+            reader = sorted(reader[1:], key=lambda x: -int(x[2]))
 
             self.tableWidget.setColumnCount(len(title))
             self.tableWidget.setHorizontalHeaderLabels(title)
@@ -421,7 +421,7 @@ def create_particles(position, win):
 # отображение фоновой картинки и частицы - грустные смайлики
 def new_gameover():
     time.sleep(1)
-    results(NAME, COUNT_OF_KILLS)
+    results(NAME, COUNT_OF_KILLS, 0)
     gameover = load_image('gameover.png')
     pygame.display.update()
 
@@ -435,6 +435,11 @@ def new_gameover():
             if event.type == pygame.USEREVENT:
                 # создаём частицы на рандомном месте раз в секунду
                 create_particles([randint(0, WIDTH), randint(0, HEIGHT)], False)
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    return game()
+                if event.key == pygame.K_q:
+                    base = DataBase()
         screen.fill(pygame.Color("white"))
         screen.blit(gameover, (0, 0))
         stars.draw(screen)
@@ -443,11 +448,11 @@ def new_gameover():
         clock.tick(20)
 
 
-# Фукнция, отвечающая за проигрышное окончание игры: запись результатов,
+# Фукнция, отвечающая за победное окончание игры: запись результатов,
 # отображение фоновой картинки и частицы - звездочки
 def new_you_win():
     time.sleep(1)
-    results(NAME, COUNT_OF_KILLS)
+    results(NAME, COUNT_OF_KILLS, 1)
     win = load_image('youwin.png')
     pygame.display.update()
 
@@ -462,6 +467,11 @@ def new_you_win():
             if event.type == pygame.USEREVENT:
                 # создаём частицы на рандомном месте раз в секунду
                 create_particles([randint(0, WIDTH), randint(0, HEIGHT)], True)
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    return game()
+                if event.key == pygame.K_q:
+                    base = DataBase()
 
         screen.fill(pygame.Color("white"))
         screen.blit(win, (0, 0))
@@ -484,15 +494,15 @@ def game():
     COUNT_OF_KILLS += result1[1]
     if result1[0] == 0:
         nextlevel()
-        time.sleep(5)  # почему отсчет идет сразу, получается (15 - 5) = 10 секунд
-        result2 = Level('background2.png', 1, 25, 20)  # 3 15 10
+        time.sleep(5)  # почему отсчет идет сразу, получается (25 - 5) = 10 секунд
+        result2 = Level('background2.png', 1, 25, 20)
         if result2 == 2:
             return game()
         COUNT_OF_KILLS += result2[1]
         if result2[0] == 0:
             nextlevel()
-            time.sleep(5)  # почему отсчет идет сразу, получаетсч 15-5 секунд
-            result3 = Level('background3.png', 1, 15, 20)  # 3 15 40
+            time.sleep(5)  # почему отсчет идет сразу, получаетсч (15 - 5) = 10 секунд
+            result3 = Level('background3.png', 1, 15, 10)
             if result3 == 2:
                 return game()
             COUNT_OF_KILLS += result3[1]
