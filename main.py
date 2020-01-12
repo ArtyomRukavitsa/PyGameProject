@@ -21,6 +21,8 @@ clock = pygame.time.Clock()
 all_sprites = pygame.sprite.Group()
 monster_group = pygame.sprite.Group()
 stars = pygame.sprite.Group()
+button_restart = pygame.sprite.Group()
+button_start = pygame.sprite.Group()
 screen_rect = (0, 0, WIDTH, HEIGHT)
 
 # Список с изображенииями монстриков
@@ -98,10 +100,32 @@ class Monster(pygame.sprite.Sprite):
         # Данное условие нужно для расположения первого монстра на начальном экране
         if x != 750 and y != 0:
             self.x = randint(0, WIDTH - self.mw)
-            self.y = randint(0, HEIGHT - self.mh - 150)
+            self.y = randint(40, HEIGHT - self.mh - 150)
             self.rect = self.image.get_rect().move(self.x, self.y)
         else:
             self.rect = self.image.get_rect().move(750, 0)
+
+
+class Restart(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__(button_restart)
+        self.image = pygame.Surface((50, 30))
+        self.rect = pygame.Rect(950, 0, 100, 30)
+        font = pygame.font.SysFont("Verdana", 10)
+        text = font.render('New', 1, pygame.Color('white'))
+        pygame.draw.rect(self.image, pygame.Color('white'), self.rect, 1)
+        self.image.blit(text, (2, 10))
+
+
+class Start(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__(button_start)
+        self.image = pygame.Surface((115, 35))
+        self.rect = pygame.Rect(0, 0, 115, 35)
+        font = pygame.font.SysFont("Verdana", 15)
+        text = font.render('Начать играть', 1, pygame.Color('white'))
+        pygame.draw.rect(self.image, pygame.Color('orange'), self.rect, 1)
+        self.image.blit(text, (2, 10))
 
 
 # Начальный экран
@@ -117,6 +141,7 @@ def start_screen():
                   'Для просмотра таблицы результатов жми Q',
                   'Для полного перезапуска игры нажимай R']
 
+    Start()
     fon = pygame.transform.scale(load_image('fon1.jpg'), (WIDTH, HEIGHT))
     monster = Monster('monster1.png', 750, 0)
     screen.blit(fon, (0, 0))
@@ -148,9 +173,14 @@ def start_screen():
                     return
                 if event.key == pygame.K_q:
                     base = DataBase()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                x, y = pygame.mouse.get_pos()
+                if 0 <= x <= 170 and 0 <= y <= 35:
+                    return
+        button_start.draw(screen)
         monster_group.draw(screen)
         pygame.display.flip()
-        clock.tick()
+        #clock.tick()
 
 
 # Сколько секунд осталось
@@ -174,7 +204,7 @@ def leftkills(count):
         text = font.render(f"Осталось убить: {count}", 1, (100, 255, 100))
     else:
         text = font.render(f"Осталось убить: 0", 1, (100, 255, 100))
-    screen.blit(text, (750, 20))
+    screen.blit(text, (650, 20))
 
 
 # Функция отвечает за выстрел
@@ -203,6 +233,7 @@ def Level(background, n, seconds, countOfMonsters):
     # n - количество монстров, возможных на экране
     # seconds - количество секунд на уровень
     # conunOfMonsters - сколько монстров нужно убить
+    restart_button = Restart()
     monster_list = []
     monster_group = pygame.sprite.Group()
     all_sprites = pygame.sprite.Group()
@@ -231,6 +262,7 @@ def Level(background, n, seconds, countOfMonsters):
                             (monster_list[i].x, monster_list[i].y))
 
             # Расположение оружия и курсора - прицела
+            button_restart.draw(screen)
             screen.blit(gun, (x, 450))  # или х оставить неизменным?
             screen.blit(arrow, (x - arrow.get_width() / 2, y - arrow.get_height() / 2))
             arrow_r = pygame.Rect(x - arrow.get_width() / 2, y - arrow.get_height() / 2, arrow.get_width(),
@@ -243,24 +275,28 @@ def Level(background, n, seconds, countOfMonsters):
                     # Проверка на столкновение с монстрами. Если оба условия верны, то
                     # убираем монстра с экрана. Если флаг == 1, то убийство произошло, а
                     # больше одного монстра убить невозможно
-                    flag = 0
-                    for i in range(n):
-                        if arrow_r.colliderect(monster_list[i]) and flag == 0:
-                            blood(monster_list[i].x + monster_list[i].mw / 2,
-                                       monster_list[i].y + monster_list[i].mh / 2)
-                            all_sprites.remove(monster_list[i])
-                            monster_group.remove(monster_list[i])
-                            del monster_list[i]
-                            monster = Monster(PICTURES[randint(0, 3)], 100, 100)
-                            monster_list.append(monster)
-                            count += 1
-                            flag = 1
+                    if arrow_r.colliderect(restart_button):
+                        return 2
+                    else:
+                        flag = 0
+                        for i in range(n):
+                            if arrow_r.colliderect(monster_list[i]) and flag == 0:
+                                blood(monster_list[i].x + monster_list[i].mw / 2,
+                                           monster_list[i].y + monster_list[i].mh / 2)
+                                all_sprites.remove(monster_list[i])
+                                monster_group.remove(monster_list[i])
+                                del monster_list[i]
+                                monster = Monster(PICTURES[randint(0, 3)], 100, 100)
+                                monster_list.append(monster)
+                                count += 1
+                                flag = 1
                 if event.type == pygame.USEREVENT:
                     # Каждую секунду становится все меньше и меньше времени
                     seconds -= 1
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RIGHT:
                         # будет пауза
+                        pygame.mixer.music.pause()
                         state = pause
                     if event.key == pygame.K_r:
                         return 2
@@ -281,6 +317,7 @@ def Level(background, n, seconds, countOfMonsters):
             for event in pygame.event.get():
                 # Если условие выполнится, то игра продолжается
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+                    pygame.mixer.music.unpause()
                     state = running
             # музыка на паузу?
             pausetext()
@@ -487,14 +524,14 @@ def game():
     result1 = Level('background1.png', 2, 20, 20)
     # Уровень возвращает один либо два параметра:
     # 1 параметр: 2, если мы хотим заново начать всю игру
-    # 2 параметра: 0 - победа, 1 - поражение и
+    # 2 параметра: 0 или 1 (победа или поражение) и
     # количество убитых монстров на уровне
     while result1 == 2:
         return game()
     COUNT_OF_KILLS += result1[1]
     if result1[0] == 0:
         nextlevel()
-        time.sleep(5)  # почему отсчет идет сразу, получается (25 - 5) = 10 секунд
+        time.sleep(5)  # почему отсчет идет сразу, получается (25 - 5) = 20 секунд
         result2 = Level('background2.png', 1, 25, 20)
         if result2 == 2:
             return game()
@@ -523,7 +560,7 @@ if __name__ == '__main__':
     # Создание экрана
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.mouse.set_visible(False)
     # Запуск заставки, далее первого уровня
     start_screen()
+    pygame.mouse.set_visible(False)
     game()
