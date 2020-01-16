@@ -21,6 +21,7 @@ clock = pygame.time.Clock()
 all_sprites = pygame.sprite.Group()
 monster_group = pygame.sprite.Group()
 stars = pygame.sprite.Group()
+sad = pygame.sprite.Group()
 button_restart = pygame.sprite.Group()
 button_start = pygame.sprite.Group()
 screen_rect = (0, 0, WIDTH, HEIGHT)
@@ -92,12 +93,12 @@ class Monster(pygame.sprite.Sprite):
         self.mw = self.image.get_width()
         self.mh = self.image.get_height()
         # Данное условие нужно для расположения первого монстра на начальном экране
-        if x != 750 and y != 0:
+        if x != 780 and y != 0:
             self.x = randint(0, WIDTH - self.mw)
             self.y = randint(40, HEIGHT - self.mh - 150)
             self.rect = self.image.get_rect().move(self.x, self.y)
         else:
-            self.rect = self.image.get_rect().move(750, 0)
+            self.rect = self.image.get_rect().move(780, 0)
 
 
 class Restart(pygame.sprite.Sprite):
@@ -135,7 +136,7 @@ def start_screen():
 
     Start()
     fon = pygame.transform.scale(load_image('fon1.jpg'), (WIDTH, HEIGHT))
-    Monster('monster1.png', 750, 0)
+    Monster('monster1.png', 780, 0)
     screen.blit(fon, (0, 0))
     font = pygame.font.SysFont('Verdana', 30)
     text_coord = 50
@@ -213,9 +214,11 @@ def text_gameover():
 # Функция отвечает за выстрел
 def blood(x, y):
     image = load_image("blood.png")
+    # Пауза фоновой музыки -> проигрыш выстрела -> возобновление фоновой музыки
     pygame.mixer.music.pause()
     gun_sound.play()
     pygame.mixer.music.unpause()
+
     imagew = image.get_width()
     imageh = image.get_height()
     screen.blit(image, (x - imagew / 2, y - imageh / 2))
@@ -243,6 +246,7 @@ def Level(background, n, seconds, countOfMonsters):
     for i in range(n):
         monster = Monster(PICTURES[randint(0, 3)], 100, 100)
         monster_list.append(monster)
+
     fon = pygame.transform.scale(load_image(background), (WIDTH, HEIGHT))
     gun = load_image('gun3.png')
     arrow = load_image("arrow_small.png")
@@ -270,6 +274,7 @@ def Level(background, n, seconds, countOfMonsters):
             screen.blit(arrow, (x - arrow.get_width() / 2, y - arrow.get_height() / 2))
             arrow_r = pygame.Rect(x - arrow.get_width() / 2, y - arrow.get_height() / 2, arrow.get_width(),
                                   arrow.get_height())
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     terminate()
@@ -415,7 +420,10 @@ class DataBase(QWidget, Ui_Form):
 # Класс для отображения частиц
 class Particle(pygame.sprite.Sprite):
     def __init__(self, name, pos, dx, dy):
-        super().__init__(stars)
+        if name == 'star.png':
+            super().__init__(stars)
+        else:
+            super().__init__(sad)
         fire = [load_image(name)]
         for scale in (5, 10, 20):
             fire.append(pygame.transform.scale(fire[0], (scale, scale)))
@@ -476,21 +484,21 @@ def new_gameover():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                x, y = pygame.mouse.get_pos()
+                if 1000 >= x >= 950 and 30 >= y >= 0:
+                    return 1
             if event.type == pygame.USEREVENT:
                 # создаём частицы на рандомном месте раз в секунду
                 create_particles([randint(0, WIDTH), randint(0, HEIGHT)], False)
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
                     base = DataBase()
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                x, y = pygame.mouse.get_pos()
-                if 1000 >= x >= 950 and 30 >= y >= 0:
-                    return game()
         screen.fill(pygame.Color("white"))
         screen.blit(gameover, (0, 0))
         button_restart.draw(screen)
-        stars.draw(screen)
-        stars.update()
+        sad.draw(screen)
+        sad.update()
         pygame.display.flip()
         clock.tick(20)
 
@@ -513,19 +521,20 @@ def new_you_win():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                x, y = pygame.mouse.get_pos()
+                if 1000 >= x >= 950 and 30 >= y >= 0:
+                    return 1
             if event.type == pygame.USEREVENT:
                 # создаём частицы на рандомном месте раз в секунду
                 create_particles([randint(0, WIDTH), randint(0, HEIGHT)], True)
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
                     base = DataBase()
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                x, y = pygame.mouse.get_pos()
-                if 1000 >= x >= 950 and 30 >= y >= 0:
-                    return game()
 
         screen.fill(pygame.Color("white"))
         screen.blit(win, (0, 0))
+        button_restart.draw(screen)
         stars.draw(screen)
         stars.update()
         pygame.display.flip()
@@ -562,13 +571,21 @@ def game():
             if result3[0] == 0:
                 nextlevel()
                 time.sleep(3)
-                new_you_win()
+                win = new_you_win()
+                if win == 1:
+                    return game()
             else:
-                new_gameover()
+                g_o = new_gameover()
+                if g_o == 1:
+                    return game()
         else:
-            new_gameover()
+            g_o = new_gameover()
+            if g_o == 1:
+                return game()
     elif result1[0] == 1:
-        new_gameover()
+        g_o = new_gameover()
+        if g_o == 1:
+            return game()
 
 
 if __name__ == '__main__':
